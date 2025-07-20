@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnkiScroll Personal</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=TikTok+Sans:opsz,wght@12..36,300..900&display=swap" rel="stylesheet">
+
+    <script>
+      MathJax = { tex: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']] }, svg: { fontCache: 'global' } };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        :root {
+            --bg-light: #ffffff; --text-light: #1c1e21; --progress-text-light: #333;
+            --bg-dark: #121212; --text-dark: #e4e6eb; --progress-text-dark: #fff;
+            --accent-blue: #007aff; --accent-green: #28a745; --accent-red: #dc3545;
+            --accent-yellow: #ffc107; --accent-moon: #58a6ff;
+            --border-light: #e9ecef; --border-dark: #3a3b3c;
+        }
+        body { margin: 0; font-family: 'TikTok Sans', sans-serif; background-color: var(--bg-light); color: var(--text-light); transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out; }
+        body.dark-mode {
+            --bg-light: var(--bg-dark); --text-light: var(--text-dark);
+            --progress-text-light: var(--progress-text-dark); --border-light: var(--border-dark);
+        }
+        #app-container { width: 100vw; height: 100vh; overflow: hidden; scroll-behavior: smooth; }
+        .slide { width: 100%; height: 100vh; display: flex; padding: 20px; box-sizing: border-box; position: relative; align-items: center; justify-content: center; }
+        .content-wrapper { display: flex; width: 100%; align-items: center; }
+        .content-area { flex-grow: 1; text-align: left; padding-right: 10px;}
+        .question, .answer { font-size: 1.7em; line-height: 1.5; font-weight: 600; }
+        .answer { margin-top: 15px; opacity: 0; transition: opacity 0.4s, height 0.4s; font-weight: 400; height: 0; overflow: hidden; }
+        .answer.visible { opacity: 1; height: auto; }
+        .button-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 25px; padding-left: 20px; }
+        .button-panel button { background: none; border: none; cursor: pointer; width: 50px; height: 50px; transition: transform 0.2s; padding: 0; }
+        .button-panel svg { fill: var(--text-light); width: 100%; height: 100%; transition: fill 0.2s; }
+        body.dark-mode .button-panel svg { fill: var(--text-dark); }
+        .button-panel button:hover { transform: scale(1.15); }
+        .rating-buttons { display: none; flex-direction: column; gap: 25px; }
+        .rate-btn.correct svg { fill: var(--accent-green) !important; }
+        .rate-btn.incorrect svg { fill: var(--accent-red) !important; }
+        .fullscreen-overlay { display:flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background-color: var(--bg-light); z-index: 200; width:100%; height:100%; transition: background-color 0.4s ease-in-out; }
+        .fullscreen-overlay.fade-in { animation: fadeIn 0.5s ease-in-out; }
+        .start-btn, .retry-btn, .upload-label { font-family: 'TikTok Sans', sans-serif; font-size: 1.1em; font-weight: 600; padding: 12px 25px; border-radius: 30px; border: none; cursor: pointer; margin-top: 15px; color: white; transition: transform 0.2s; display: inline-block; }
+        .start-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .upload-label { background-color: var(--accent-green); }
+        #file-uploader { display: none; }
+        #summary-stats { margin: 20px auto; font-size: 1.1em; text-align: left; max-width: 300px; }
+        #summary-buttons { display: flex; flex-direction: column; gap: 15px; }
+        #header-controls { position: fixed; top: 15px; right: 15px; z-index: 100; display: flex; }
+        #toggle-dark-mode { background:none; border:none; width: 45px; height: 45px; cursor: pointer; padding: 0;}
+        #toggle-dark-mode svg { width: 100%; height: 100%; }
+        #toggle-dark-mode svg.moon-icon { fill: var(--text-light); }
+        body.dark-mode #toggle-dark-mode svg.moon-icon { fill: var(--accent-moon); }
+        body.dark-mode #toggle-dark-mode svg.sun-icon { fill: var(--accent-yellow); }
+        #session-info { position: fixed; bottom: 0; left: 0; width: 100%; padding: 10px 15px; box-sizing: border-box; background: linear-gradient(to top, rgba(0,0,0,0.05), transparent); }
+        body.dark-mode #session-info { background: linear-gradient(to top, rgba(0,0,0,0.2), transparent); }
+        #progress-bar-container { width: 100%; height: 5px; background-color: var(--border-light); border-radius: 5px; margin-bottom: 8px; }
+        #progress-bar { width: 0%; height: 100%; border-radius: 5px; transition: width 0.5s; background-color: var(--accent-blue); }
+        body.dark-mode #progress-bar { background-color: white; }
+        #score-display { display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 600; color: var(--progress-text-light); gap: 8px; flex-wrap: nowrap; }
+        body.dark-mode #score-display { color: var(--progress-text-dark); }
+        #review-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--bg-light); z-index: 300; overflow-y: auto; padding: 20px; box-sizing: border-box; transform: translateY(100%); transition: transform 0.4s ease-in-out, background-color 0.4s ease-in-out; }
+        #review-container.visible { transform: translateY(0); }
+        #review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .review-item { margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 15px; display: flex; gap: 15px; align-items: flex-start; }
+        .review-item .status-icon svg { width: 24px; height: 24px; flex-shrink: 0; }
+        .review-item .content .question { font-size: 1.1em; }
+        .review-item .content .answer { font-size: 1em; color: var(--accent-green); height: auto; opacity: 1;}
+    </style>
+</head>
+<body class="dark-mode">
+
+    <svg width="0" height="0" style="position:absolute"><defs>
+        <symbol id="icon-eye" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12c-2.48 0-4.5-2.02-4.5-4.5S9.52 7.5 12 7.5s4.5 2.02 4.5 4.5-2.02 4.5-4.5 4.5zm0-7C10.62 9.5 9.5 10.62 9.5 12s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5S13.38 9.5 12 9.5z" /></symbol>
+        <symbol id="icon-thumb-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" /></symbol>
+        <symbol id="icon-thumb-down" viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09-.23-.14-.47-.14-.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41-.17-.79-.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z" /></symbol>
+        <symbol id="icon-sun" viewBox="0 0 24 24"><path d="M18 12C18 15.3137 15.3137 18 12 18C8.68629 18 6 15.3137 6 12C6 8.68629 8.68629 6 12 6C15.3137 6 18 8.68629 18 12Z"></path><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1.25C12.4142 1.25 12.75 1.58579 12.75 2V3C12.75 3.41421 12.4142 3.75 12 3.75C11.5858 3.75 11.25 3.41421 11.25 3V2C11.25 1.58579 11.5858 1.25 12 1.25ZM1.25 12C1.25 11.5858 1.58579 11.25 2 11.25H3C3.41421 11.25 3.75 11.5858 3.75 12C3.75 12.4142 3.41421 12.75 3 12.75H2C1.58579 12.75 1.25 12.4142 1.25 12ZM20.25 12C20.25 11.5858 20.5858 11.25 21 11.25H22C22.4142 11.25 22.75 11.5858 22.75 12C22.75 12.4142 22.4142 12.75 22 12.75H21C20.5858 12.75 20.25 12.4142 20.25 12ZM12 20.25C12.4142 20.25 12.75 20.5858 12.75 21V22C12.75 22.4142 12.4142 22.75 12 22.75C11.5858 22.75 11.25 22.4142 11.25 22V21C11.25 20.5858 11.5858 20.25 12 20.25Z"></path><g opacity="0.5"><path d="M4.39838 4.39838C4.69127 4.10549 5.16615 4.10549 5.45904 4.39838L5.85188 4.79122C6.14477 5.08411 6.14477 5.55898 5.85188 5.85188C5.55898 6.14477 5.08411 6.14477 4.79122 5.85188L4.39838 5.45904C4.10549 5.16615 4.10549 4.69127 4.39838 4.39838Z"></path><path d="M19.6009 4.39864C19.8938 4.69153 19.8938 5.16641 19.6009 5.4593L19.2081 5.85214C18.9152 6.14503 18.4403 6.14503 18.1474 5.85214C17.8545 5.55924 17.8545 5.08437 18.1474 4.79148L18.5402 4.39864C18.8331 4.10575 19.308 4.10575 19.6009 4.39864Z"></path><path d="M18.1474 18.1474C18.4403 17.8545 18.9152 17.8545 19.2081 18.1474L19.6009 18.5402C19.8938 18.8331 19.8938 19.308 19.6009 19.6009C19.308 19.8938 18.8331 19.8938 18.5402 19.6009L18.1474 19.2081C17.8545 18.9152 17.8545 18.4403 18.1474 18.1474Z"></path><path d="M5.85188 18.1477C6.14477 18.4406 6.14477 18.9154 5.85188 19.2083L5.45904 19.6012C5.16615 19.8941 4.69127 19.8941 4.39838 19.6012C4.10549 19.3083 4.10549 18.8334 4.39838 18.5405L4.79122 18.1477C5.08411 17.8548 5.55898 17.8548 5.85188 18.1477Z"></path></g></symbol>
+        <symbol id="icon-moon" viewBox="0 0 24 24"><g fill="currentColor"><path d="M19.9001 2.30719C19.7392 1.8976 19.1616 1.8976 19.0007 2.30719L18.5703 3.40247C18.5212 3.52752 18.4226 3.62651 18.298 3.67583L17.2067 4.1078C16.7986 4.26934 16.7986 4.849 17.2067 5.01054L18.298 5.44252C18.4226 5.49184 18.5212 5.59082 18.5703 5.71587L19.0007 6.81115C19.1616 7.22074 19.7392 7.22074 19.9001 6.81116L20.3305 5.71587C20.3796 5.59082 20.4782 5.49184 20.6028 5.44252L21.6941 5.01054C22.1022 4.849 22.1022 4.26934 21.6941 4.1078L20.6028 3.67583C20.4782 3.62651 20.3796 3.52752 20.3305 3.40247L19.9001 2.30719Z"></path><path d="M16.0328 8.12967C15.8718 7.72009 15.2943 7.72009 15.1333 8.12967L14.9764 8.52902C14.9273 8.65407 14.8287 8.75305 14.7041 8.80237L14.3062 8.95987C13.8981 9.12141 13.8981 9.70107 14.3062 9.86261L14.7041 10.0201C14.8287 10.0694 14.9273 10.1684 14.9764 10.2935L15.1333 10.6928C15.2943 11.1024 15.8718 11.1024 16.0328 10.6928L16.1897 10.2935C16.2388 10.1684 16.3374 10.0694 16.462 10.0201L16.8599 9.86261C17.268 9.70107 17.268 9.12141 16.8599 8.95987L16.462 8.80237C16.3374 8.75305 16.2388 8.65407 16.1897 8.52902L16.0328 8.12967Z"></path><path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5373 21.3065 11.4608 21.0672 11.8568C19.9289 13.7406 17.8615 15 15.5 15C11.9101 15 9 12.0899 9 8.5C9 6.13845 10.2594 4.07105 12.1432 2.93276C12.5392 2.69347 12.4627 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path></g></symbol>
+        <symbol id="icon-check" viewBox="0 0 16 16"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" fill="var(--accent-green)"/></symbol>
+        <symbol id="icon-cross" viewBox="0 0 16 16"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" fill="var(--accent-red)"/></symbol>
+    </defs></svg>
+
+    <div id="header-controls">
+        <button id="toggle-dark-mode"><svg><use xlink:href="#icon-sun"/></svg></button>
+    </div>
+
+    <div id="app-container">
+        <div id="greeting-screen" class="slide fullscreen-overlay">
+            <h1 id="greeting-text"></h1>
+            <div id="upload-section">
+                <p>Unggah file dek (.txt) untuk memulai.</p>
+                <label for="file-uploader" class="upload-label">Pilih File</label>
+                <input type="file" id="file-uploader" accept=".txt,.csv">
+            </div>
+            <div id="deck-loaded-section" style="display:none;">
+                <p>Dek <strong id="deck-name"></strong> sudah siap!</p>
+                <button id="clear-data-btn" class="retry-btn" style="background-color: var(--accent-red);">Ganti File Dek</button>
+            </div>
+            <button id="start-session-btn" class="start-btn" style="background-color: var(--accent-blue);" disabled>Mulai Belajar</button>
+        </div>
+    </div>
+    
+    <div id="session-info" style="display:none;">
+        <div id="progress-bar-container"><div id="progress-bar"></div></div>
+        <div id="score-display"></div>
+    </div>
+    
+    <audio id="correct-sfx" src="correct.mp3"></audio>
+    <audio id="incorrect-sfx"src="incorrect.mp3"></audio>
+    
+    <script>
+        const app = { elements: {}, state: { allFlashcards: [], incorrectCards: [], sessionHistory: [], currentDeck: [], currentCardIndex: 0, score: 0, streak: 0, } };
+        document.addEventListener('DOMContentLoaded', initialize);
+
+        function initialize() {
+            app.elements = {
+                appContainer: document.getElementById('app-container'),
+                greetingScreen: document.getElementById('greeting-screen'),
+                greetingText: document.getElementById('greeting-text'),
+                uploadSection: document.getElementById('upload-section'),
+                deckLoadedSection: document.getElementById('deck-loaded-section'),
+                deckName: document.getElementById('deck-name'),
+                clearDataBtn: document.getElementById('clear-data-btn'),
+                fileUploader: document.getElementById('file-uploader'),
+                startSessionBtn: document.getElementById('start-session-btn'),
+                sessionInfo: document.getElementById('session-info'),
+                scoreDisplay: document.getElementById('score-display'),
+                progressBar: document.getElementById('progress-bar'),
+                darkModeButton: document.getElementById('toggle-dark-mode'),
+                headerControls: document.getElementById('header-controls'),
+                correctSfx: document.getElementById('correct-sfx'),
+                incorrectSfx: document.getElementById('incorrect-sfx'),
+            };
+            setGreeting();
+            applySavedTheme();
+            checkForSavedData();
+            app.elements.startSessionBtn.addEventListener('click', startNewSession);
+            app.elements.darkModeButton.addEventListener('click', toggleDarkMode);
+            app.elements.fileUploader.addEventListener('change', handleFileUpload);
+            app.elements.clearDataBtn.addEventListener('click', clearSavedData);
+        }
+
+        function setGreeting() {
+            const hour = new Date().getHours();
+            if (hour >= 5 && hour < 12) app.elements.greetingText.textContent = 'Selamat Pagi!';
+            else if (hour >= 12 && hour < 15) app.elements.greetingText.textContent = 'Selamat Siang!';
+            else if (hour >= 15 && hour < 19) app.elements.greetingText.textContent = 'Selamat Sore!';
+            else app.elements.greetingText.textContent = 'Selamat Malam!';
+        }
+        
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.body.classList.remove('dark-mode');
+            } else {
+                document.body.classList.add('dark-mode');
+            }
+            updateThemeButtonIcon();
+        }
+
+        function checkForSavedData() {
+            const savedData = localStorage.getItem('flashcardData');
+            if (savedData) {
+                app.elements.uploadSection.style.display = 'none';
+                app.elements.deckLoadedSection.style.display = 'block';
+                app.elements.deckName.textContent = localStorage.getItem('flashcardFilename') || 'tersimpan';
+                app.elements.startSessionBtn.disabled = false;
+            } else {
+                app.elements.uploadSection.style.display = 'block';
+                app.elements.deckLoadedSection.style.display = 'none';
+                app.elements.startSessionBtn.disabled = true;
+            }
+        }
+
+        function clearSavedData() {
+            localStorage.removeItem('flashcardData');
+            localStorage.removeItem('flashcardFilename');
+            location.reload();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                if (validateFlashcardContent(text)) {
+                    localStorage.setItem('flashcardData', text);
+                    localStorage.setItem('flashcardFilename', file.name);
+                    alert(`Sukses! Dek "${file.name}" berhasil dimuat.`);
+                    checkForSavedData();
+                } else {
+                    alert('Gagal! Format file tidak sesuai. Pastikan menggunakan pemisah "|||" antara soal dan jawaban.');
+                    app.elements.fileUploader.value = '';
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function validateFlashcardContent(text) {
+            if (!text || text.trim() === '') return false;
+            return text.split('\n').some(line => line.includes('|||'));
+        }
+
+        function startNewSession() {
+            loadFlashcards();
+            if (app.state.allFlashcards.length === 0) return;
+            app.state.currentDeck = [...app.state.allFlashcards];
+            resetSessionState();
+            startSession();
+        }
+
+        function startRetrySession() {
+            if (app.state.incorrectCards.length === 0) { alert("Kerja bagus! Tidak ada kartu untuk diulang."); return; }
+            app.state.currentDeck = [...app.state.incorrectCards];
+            resetSessionState();
+            startSession();
+        }
+        
+        function startSession() {
+            createAllSlides();
+            updateProgress();
+            app.elements.greetingScreen.style.display = 'none';
+            app.elements.sessionInfo.style.display = 'block';
+            app.elements.headerControls.style.display = 'flex';
+            app.elements.appContainer.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        function resetSessionState() {
+            app.state.incorrectCards = []; app.state.sessionHistory = [];
+            app.state.currentCardIndex = 0; app.state.score = 0; app.state.streak = 0;
+        }
+
+        function loadFlashcards() {
+            const textData = localStorage.getItem('flashcardData');
+            if (!textData) { alert("Data dek tidak ditemukan. Silakan unggah file terlebih dahulu."); location.reload(); return; }
+            app.state.allFlashcards = textData.split('\n').filter(l => l.trim() !== '').map(l => {
+                const parts = l.split('|||');
+                return { question: parts[0].trim(), answer: (parts[1] || '').trim() };
+            });
+        }
+
+        function createAllSlides() {
+            const container = app.elements.appContainer;
+            container.querySelectorAll('.slide:not(.fullscreen-overlay)').forEach(e => e.remove());
+            
+            app.state.currentDeck.forEach((card, index) => {
+                const slide = document.createElement('div');
+                slide.className = 'slide'; slide.id = `slide-${index}`;
+                slide.innerHTML = `
+                    <div class="content-wrapper">
+                        <div class="content-area">
+                            <div class="question">${card.question}</div>
+                            <div class="answer">${card.answer}</div>
+                        </div>
+                        <div class="button-panel">
+                            <button class="view-answer-btn"><svg><use xlink:href="#icon-eye"/></svg></button>
+                            <div class="rating-buttons">
+                                <button class="rate-btn" data-correct="true"><svg><use xlink:href="#icon-thumb-up"/></svg></button>
+                                <button class="rate-btn" data-correct="false"><svg><use xlink:href="#icon-thumb-down"/></svg></button>
+                            </div>
+                        </div>
+                    </div>`;
+                container.appendChild(slide);
+            });
+            
+            const summaryPlaceholder = document.createElement('div');
+            summaryPlaceholder.className = 'slide';
+            summaryPlaceholder.id = 'summary-placeholder';
+            container.appendChild(summaryPlaceholder);
+
+            if (window.MathJax) { window.MathJax.typesetPromise(); }
+            addSlideEventListeners();
+        }
+        
+        function addSlideEventListeners() {
+             document.querySelectorAll('.view-answer-btn').forEach((btn) => btn.onclick = () => toggleAnswer(btn));
+             document.querySelectorAll('.rate-btn').forEach(btn => {
+                 const isCorrect = btn.dataset.correct === 'true';
+                 btn.onclick = () => handleRating(btn, isCorrect);
+             });
+        }
+
+        function toggleAnswer(button) {
+            const answer = button.closest('.content-wrapper').querySelector('.answer');
+            const ratingButtons = button.closest('.content-wrapper').querySelector('.rating-buttons');
+            answer.classList.toggle('visible');
+            ratingButtons.style.display = answer.classList.contains('visible') ? 'flex' : 'none';
+        }
+
+        function handleRating(button, isCorrect) {
+            const slide = button.closest('.slide');
+            const slideIndex = parseInt(slide.id.split('-')[1]);
+            app.state.sessionHistory.push({ card: app.state.currentDeck[slideIndex], wasCorrect: isCorrect });
+            button.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            if (!isCorrect) {
+                app.state.incorrectCards.push(app.state.currentDeck[slideIndex]);
+                app.state.streak = 0; 
+                app.elements.incorrectSfx.currentTime = 0;
+                app.elements.incorrectSfx.play();
+            } else {
+                app.state.score += 10;
+                app.state.streak++;
+                app.elements.correctSfx.currentTime = 0;
+                app.elements.correctSfx.play();
+            }
+            slide.querySelectorAll('button').forEach(b => b.disabled = true);
+
+            setTimeout(() => {
+                app.state.currentCardIndex++;
+                updateProgress();
+                const targetY = app.state.currentCardIndex * window.innerHeight;
+                app.elements.appContainer.scrollTo({ top: targetY, behavior: 'smooth' });
+                
+                if (app.state.currentCardIndex >= app.state.currentDeck.length) {
+                    setTimeout(showSummaryScreen, 500);
+                }
+            }, 400);
+        }
+        
+        function updateProgress() {
+            const { score, streak, currentCardIndex, currentDeck } = app.state;
+            app.elements.scoreDisplay.innerHTML = `Skor: ${score} | Streak: ${streak} | ${currentCardIndex}/${currentDeck.length}`;
+            app.elements.progressBar.style.width = `${(currentCardIndex / currentDeck.length) * 100}%`;
+        }
+        
+        function showSummaryScreen() {
+            const placeholder = document.getElementById('summary-placeholder');
+            const correctCount = app.state.currentDeck.length - app.state.incorrectCards.length;
+            placeholder.innerHTML = `
+                <div class="fullscreen-overlay fade-in">
+                    <h1>Sesi Selesai!</h1>
+                    <div id="summary-stats">
+                        <p>Benar: <strong>${correctCount}</strong></p>
+                        <p>Salah: <strong>${app.state.incorrectCards.length}</strong></p>
+                        <p>Skor Akhir: <strong>${app.state.score}</strong></p>
+                    </div>
+                    <div id="summary-buttons">
+                        <button id="copy-btn" class="retry-btn" style="background-color: #ff9500;">Salin Laporan</button>
+                        <button id="review-btn" class="retry-btn" style="background-color: var(--accent-blue);">Lihat Review Jawaban</button>
+                        <button id="retry-incorrect-btn" class="retry-btn" style="background-color: var(--accent-green);">Ulangi Kartu Salah</button>
+                        <button id="restart-full-btn" class="retry-btn" style="background-color: #6c757d;">Mulai Sesi Baru</button>
+                    </div>
+                </div>
+            `;
+            app.elements.sessionInfo.style.display = 'none';
+            app.elements.headerControls.style.display = 'none';
+            
+            if(app.state.incorrectCards.length === 0) placeholder.querySelector('#retry-incorrect-btn').style.display = 'none';
+            placeholder.querySelector('#copy-btn').onclick = copyReportToClipboard;
+            placeholder.querySelector('#review-btn').onclick = showReviewScreen;
+            placeholder.querySelector('#retry-incorrect-btn').onclick = startRetrySession;
+            placeholder.querySelector('#restart-full-btn').onclick = () => location.reload();
+        }
+
+        function showReviewScreen() {
+            let reviewContainer = document.getElementById('review-container');
+            if (!reviewContainer) {
+                reviewContainer = document.createElement('div');
+                reviewContainer.id = 'review-container';
+                document.body.appendChild(reviewContainer);
+            }
+            
+            let reviewHTML = `
+                <div id="review-header">
+                    <h2>Review Jawaban</h2>
+                    <button class="retry-btn" style="margin-top:0; background-color: var(--accent-red);">Tutup</button>
+                </div>`;
+            app.state.sessionHistory.forEach(item => {
+                reviewHTML += `
+                    <div class="review-item">
+                        <div class="status-icon"><svg><use xlink:href="${item.wasCorrect ? '#icon-check' : '#icon-cross'}"/></svg></div>
+                        <div class="content">
+                            <div class="question">${item.card.question}</div>
+                            <div class="answer visible">${item.card.answer}</div>
+                        </div>
+                    </div>`;
+            });
+            reviewContainer.innerHTML = reviewHTML;
+            if (window.MathJax) { window.MathJax.typesetPromise(); }
+
+            reviewContainer.querySelector('button').onclick = () => { reviewContainer.classList.remove('visible'); };
+            setTimeout(() => reviewContainer.classList.add('visible'), 10);
+        }
+
+        function copyReportToClipboard() {
+            const { score, sessionHistory, incorrectCards } = app.state;
+            const correctCount = sessionHistory.length - incorrectCards.length;
+            let report = `LAPORAN SESI BELAJAR\n=====================\nSkor Akhir: ${score}\nBenar: ${correctCount}\nSalah: ${incorrectCards.length}\n=====================\n\n`;
+            sessionHistory.forEach((item, index) => {
+                report += `KARTU #${index + 1}\nStatus: ${item.wasCorrect ? 'BENAR' : 'SALAH'}\nSoal: ${item.card.question}\nJawaban: ${item.card.answer}\n\n`;
+            });
+            navigator.clipboard.writeText(report).then(() => { alert('Laporan berhasil disalin ke clipboard!'); }, () => { alert('Gagal menyalin laporan.'); });
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            updateThemeButtonIcon();
+        }
+
+        function updateThemeButtonIcon() {
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            app.elements.darkModeButton.innerHTML = `<svg class="${isDarkMode ? 'sun-icon' : 'moon-icon'}"><use xlink:href="${isDarkMode ? '#icon-sun' : '#icon-moon'}"/></svg>`;
+        }
+    </script>
+</body>
+</html>
