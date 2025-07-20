@@ -324,6 +324,7 @@
                 updateProgress();
                 const targetY = app.state.currentCardIndex * app.elements.appContainer.clientHeight;
                 app.elements.appContainer.scrollTo({ top: targetY, behavior: 'smooth' });
+
                 
                 if (app.state.currentCardIndex >= app.state.currentDeck.length) {
                     setTimeout(showSummaryScreen, 500);
