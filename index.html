@@ -322,7 +322,7 @@
             setTimeout(() => {
                 app.state.currentCardIndex++;
                 updateProgress();
-                const targetY = app.state.currentCardIndex * window.innerHeight;
+                const targetY = app.state.currentCardIndex * app.elements.appContainer.clientHeight;
                 app.elements.appContainer.scrollTo({ top: targetY, behavior: 'smooth' });
                 
                 if (app.state.currentCardIndex >= app.state.currentDeck.length) {
